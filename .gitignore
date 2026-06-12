@@ -1,0 +1,4 @@
+almanack.db
+__pycache__/
+*.pyc
+*.log

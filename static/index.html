@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Market Almanack</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">▌</span>
+      <h1>MARKET ALMANACK</h1>
+    </div>
+    <div class="controls" role="group" aria-label="Manual data refresh">
+      <button id="btn-screeners" type="button" class="btn">
+        <span class="btn-label">Refresh Screeners</span>
+      </button>
+      <button id="btn-earnings" type="button" class="btn">
+        <span class="btn-label">Refresh Earnings</span>
+      </button>
+      <button id="btn-news" type="button" class="btn">
+        <span class="btn-label">Refresh News</span>
+      </button>
+      <button id="btn-analysis" type="button" class="btn">
+        <span class="btn-label">Update Analysis</span>
+      </button>
+      <button id="btn-spy" type="button" class="btn">
+        <span class="btn-label">Refresh SPY Positioning</span>
+      </button>
+    </div>
+  </header>
+
+  <div id="status-line" class="status-line" role="status" aria-live="polite"></div>
+
+  <main id="main" class="grid">
+    <!-- SPY dealer positioning -->
+    <section class="panel panel-spy" id="panel-spy_positioning" aria-labelledby="h-spy_positioning">
+      <div class="panel-head">
+        <h2 id="h-spy_positioning">SPY Positioning</h2>
+        <div class="panel-meta">
+          <span class="badge" data-badge></span>
+          <span class="updated" data-updated>—</span>
+        </div>
+      </div>
+      <div class="panel-body" data-body aria-live="polite"></div>
+    </section>
+
+    <!-- Screeners -->
+    <section class="panel panel-wide" id="panel-screener_day" aria-labelledby="h-screener_day">
+      <div class="panel-head">
+        <h2 id="h-screener_day">Daytrading Screener</h2>
+        <div class="panel-meta">
+          <span class="badge" data-badge></span>
+          <span class="updated" data-updated>—</span>
+        </div>
+      </div>
+      <div class="panel-body" data-body aria-live="polite"></div>
+    </section>
+
+    <section class="panel panel-wide" id="panel-screener_swing" aria-labelledby="h-screener_swing">
+      <div class="panel-head">
+        <h2 id="h-screener_swing">Swing Screener</h2>
+        <div class="panel-meta">
+          <span class="badge" data-badge></span>
+          <span class="updated" data-updated>—</span>
+        </div>
+      </div>
+      <div class="panel-body" data-body aria-live="polite"></div>
+    </section>
+
+    <!-- Upcoming earnings -->
+    <section class="panel panel-earnings" id="panel-earnings" aria-labelledby="h-earnings">
+      <div class="panel-head">
+        <h2 id="h-earnings">Upcoming Earnings</h2>
+        <div class="panel-meta">
+          <span class="badge" data-badge></span>
+          <span class="updated" data-updated>—</span>
+        </div>
+      </div>
+      <div class="panel-body scroll" data-body aria-live="polite"></div>
+    </section>
+
+    <!-- News feeds -->
+    <section class="panel panel-feed" id="panel-news_us" aria-labelledby="h-news_us">
+      <div class="panel-head">
+        <h2 id="h-news_us">US Markets</h2>
+        <div class="panel-meta">
+          <span class="badge" data-badge></span>
+          <span class="updated" data-updated>—</span>
+        </div>
+      </div>
+      <div class="panel-body scroll" data-body aria-live="polite"></div>
+    </section>
+
+    <section class="panel panel-feed" id="panel-news_global" aria-labelledby="h-news_global">
+      <div class="panel-head">
+        <h2 id="h-news_global">Global &rarr; US</h2>
+        <div class="panel-meta">
+          <span class="badge" data-badge></span>
+          <span class="updated" data-updated>—</span>
+        </div>
+      </div>
+      <div class="panel-body scroll" data-body aria-live="polite"></div>
+    </section>
+
+    <section class="panel panel-feed" id="panel-news_energy" aria-labelledby="h-news_energy">
+      <div class="panel-head">
+        <h2 id="h-news_energy">Energy</h2>
+        <div class="panel-meta">
+          <span class="badge" data-badge></span>
+          <span class="updated" data-updated>—</span>
+        </div>
+      </div>
+      <div class="panel-body scroll" data-body aria-live="polite"></div>
+    </section>
+
+    <section class="panel panel-feed" id="panel-news_precious" aria-labelledby="h-news_precious">
+      <div class="panel-head">
+        <h2 id="h-news_precious">Precious Metals</h2>
+        <div class="panel-meta">
+          <span class="badge" data-badge></span>
+          <span class="updated" data-updated>—</span>
+        </div>
+      </div>
+      <div class="panel-body scroll" data-body aria-live="polite"></div>
+    </section>
+
+    <section class="panel panel-feed" id="panel-news_commodities" aria-labelledby="h-news_commodities">
+      <div class="panel-head">
+        <h2 id="h-news_commodities">Other Commodities</h2>
+        <div class="panel-meta">
+          <span class="badge" data-badge></span>
+          <span class="updated" data-updated>—</span>
+        </div>
+      </div>
+      <div class="panel-body scroll" data-body aria-live="polite"></div>
+    </section>
+
+    <!-- Analyses -->
+    <section class="panel panel-analysis" id="panel-analysis_macro" aria-labelledby="h-analysis_macro">
+      <div class="panel-head">
+        <h2 id="h-analysis_macro">Macro Overview</h2>
+        <div class="panel-meta">
+          <span class="badge" data-badge></span>
+          <span class="updated" data-updated>—</span>
+        </div>
+      </div>
+      <div class="panel-body" data-body aria-live="polite"></div>
+    </section>
+
+    <section class="panel panel-analysis" id="panel-analysis_commodity" aria-labelledby="h-analysis_commodity">
+      <div class="panel-head">
+        <h2 id="h-analysis_commodity">Commodity Overview</h2>
+        <div class="panel-meta">
+          <span class="badge" data-badge></span>
+          <span class="updated" data-updated>—</span>
+        </div>
+      </div>
+      <div class="panel-body" data-body aria-live="polite"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>Local offline dashboard &middot; data persists between sessions &middot; nothing auto-refreshes</p>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
