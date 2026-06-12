@@ -1,12 +1,12 @@
 # Market Almanack
 
 A **local, offline market dashboard** that runs in your browser at
-`http://localhost:8000`. It combines two Finviz screeners, five RSS news
-feeds, and two rule-based (no-LLM) news analyses into a single terminal-style
-page.
+`http://localhost:8000`. It combines a SPY dealer-positioning panel, two
+Finviz screeners, an upcoming-earnings calendar, five RSS news feeds, and two
+rule-based (no-LLM) news analyses into a single terminal-style page.
 
 - **No API keys. No LLM calls.** Everything runs offline aside from the
-  RSS / Finviz HTTP fetches the buttons trigger.
+  CBOE / RSS / Finviz / yfinance HTTP fetches the buttons trigger.
 - **Nothing auto-refreshes.** You decide when to fetch.
 - **Data persists** to a local SQLite file (`almanack.db`), so reopening the
   page immediately renders your last session before any new fetch. Every panel
@@ -24,35 +24,39 @@ python app.py
 Then open <http://localhost:8000>. On first run the app auto-downloads the
 NLTK stopword list; no manual setup needed.
 
-## The three buttons
+## The buttons
 
 | Button | What it does | Panels |
 |--------|--------------|--------|
-| **Refresh Screeners** | Re-runs both Finviz screeners (and upcoming earnings, since its watchlist is partly derived from the screeners) | 1–2, 10 |
-| **Refresh Earnings** | Re-fetches upcoming earnings for the watchlist only | 10 |
-| **Refresh News** | Re-fetches all RSS feeds | 3–7 |
-| **Update Analysis** | Re-runs the analyses on the **currently cached** news | 8–9 |
+| **Refresh SPY Positioning** | Pulls the delayed CBOE SPY option chain and recomputes the dealer-positioning snapshot | 1 |
+| **Refresh Screeners** | Re-runs both Finviz screeners (and upcoming earnings, since its watchlist is partly derived from the screeners) | 2–3, 4 |
+| **Refresh Earnings** | Re-fetches upcoming earnings for the watchlist only | 4 |
+| **Refresh News** | Re-fetches all RSS feeds | 5–9 |
+| **Update Analysis** | Re-runs the analyses on the **currently cached** news | 10–11 |
 
 `Update Analysis` reads whatever news is already stored, so refresh news first
 if you want the analysis to reflect the latest headlines.
 
 ## Panels
 
-1. **Daytrading Screener** — Finviz: price > $5, avg vol > 500K, rel vol > 2,
+1. **SPY Positioning** — a dealer option-positioning snapshot for SPY, computed
+   from the delayed CBOE option chain (no key required). It reports the gamma
+   regime (positive/negative) and the zero-gamma flip level, net GEX/DEX,
+   computed vanna & charm, call/put gamma walls, high-OI magnet strikes, and the
+   monthly-OPEX context, plus a ±6% per-strike gamma chart. A deterministic,
+   rule-based commentary engine turns those numbers into a headline and 3–6
+   plain-English sentences — **no LLM**. Greeks math lives in `panels/_bs.py`;
+   thresholds are tunable constants at the top of `panels/spy_positioning.py`.
+
+   > Note: this is a *delayed* snapshot (CBOE end-of-15-min data). A stale-,
+   > fallback-spot-, or thin-chain badge is shown in-panel when data quality is
+   > degraded, and the read is descriptive of positioning, not trade advice.
+2. **Daytrading Screener** — Finviz: price > $5, avg vol > 500K, rel vol > 2,
    change up, gap up, price above SMA20 & SMA50, float < 50M, beta > 1.5.
-2. **Swing Screener** — price > $10, avg vol > 500K, rel vol > 1.5, above
+3. **Swing Screener** — price > $10, avg vol > 500K, rel vol > 1.5, above
    SMA20/50/200, month up, within 0–10% of 52-week high, RSI(14) not overbought.
    Both are sortable tables (click or focus + Enter on any header).
-3. **US Markets** — Fed/macro/equities/earnings (CNBC, MarketWatch, Google News).
-4. **Global → US** — China, ECB, BoJ, OPEC, trade policy and other
-   international news affecting US markets.
-5. **Energy** — oil, natural gas, uranium, LNG (OilPrice + Google News).
-6. **Precious Metals** — gold, silver, platinum, palladium.
-7. **Other Commodities** — grains, softs, base & industrial metals, lumber, etc.
-8. **Macro Overview** — analysis of panels 3+4.
-9. **Commodity Overview** — analysis of panels 5/6/7, broken down per complex
-   plus a cross-complex summary.
-10. **Upcoming Earnings** — `yfinance` earnings dates for a watchlist within
+4. **Upcoming Earnings** — `yfinance` earnings dates for a watchlist within
     the next 14 days, grouped by date with sticky day headers. The watchlist is
     the **S&P 500 + Nasdaq-100 union** (~520 tickers, baked into
     `watchlist_constituents.py`) plus whatever the two screeners return, so it
@@ -68,8 +72,17 @@ if you want the analysis to reflect the latest headlines.
     > Note: earnings dates/estimates come straight from yfinance and
     > occasionally carry upstream data quirks (an odd EPS figure, a spun-off
     > ticker). They're displayed as-is, not corrected.
+5. **US Markets** — Fed/macro/equities/earnings (CNBC, MarketWatch, Google News).
+6. **Global → US** — China, ECB, BoJ, OPEC, trade policy and other
+   international news affecting US markets.
+7. **Energy** — oil, natural gas, uranium, LNG (OilPrice + Google News).
+8. **Precious Metals** — gold, silver, platinum, palladium.
+9. **Other Commodities** — grains, softs, base & industrial metals, lumber, etc.
+10. **Macro Overview** — analysis of panels 5+6.
+11. **Commodity Overview** — analysis of panels 7/8/9, broken down per complex
+    plus a cross-complex summary.
 
-## How the analysis works (panels 8–9)
+## How the analysis works (panels 10–11)
 
 Pure-Python extractive analysis, fully offline:
 
@@ -100,6 +113,10 @@ market_almanack/
 ├── tools/refresh_constituents.py   regenerate the constituents list
 ├── news.py           RSS feed config + fetch / dedupe / sort
 ├── analysis.py       VADER + CountVectorizer + entity-spotting pipeline
+├── panels/
+│   ├── spy_positioning.py   CBOE chain -> GEX/DEX/vanna/charm + rule-based commentary
+│   ├── _bs.py               Black-Scholes Greeks (vanna, charm, ladder gamma)
+│   └── test_spy_positioning.py   unit tests for the positioning math/engine
 ├── static/           index.html, style.css, app.js (the dashboard UI)
 ├── requirements.txt
 └── almanack.db       created on first run (gitignored)
@@ -114,3 +131,7 @@ market_almanack/
   unaffected.
 - Analysis on an empty corpus is handled gracefully ("No data yet — refresh
   news first").
+- **SPY Positioning** uses CBOE's free delayed-quote endpoint — no account or
+  key. It is delayed data and a research/education aid, **not** trading advice;
+  the panel surfaces stale/fallback/thin-chain warnings when quality is degraded.
+  Run its tests with `python -m pytest panels/test_spy_positioning.py`.
