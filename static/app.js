@@ -13,6 +13,7 @@ const RENDERERS = {
   analysis_macro: renderMacro,
   analysis_commodity: renderCommodity,
   spy_positioning: renderSpyPositioning,
+  ticker_positioning: renderTickerPositioning,
 };
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -402,7 +403,7 @@ function spyCard(label, value, sub, cls) {
     `<div class="spy-card-sub">${sub || ""}</div></div>`;
 }
 
-function spyGexChart(p) {
+function spyGexChart(p, bucket = 5) {
   const chart = (p.chart || []).slice().sort((a, b) => b.strike - a.strike);
   if (!chart.length) return `<p class="empty-note">No strike data in window.</p>`;
 
@@ -430,7 +431,7 @@ function spyGexChart(p) {
   // axis
   svg += `<line x1="${cx}" y1="${padTop - 8}" x2="${cx}" y2="${H - padBot + 4}" class="gex-axis"/>`;
 
-  const magnetSet = new Set((p.oi_magnets || []).map((m) => Math.round(m.strike / 5) * 5));
+  const magnetSet = new Set((p.oi_magnets || []).map((m) => Math.round(m.strike / bucket) * bucket));
 
   chart.forEach((c, i) => {
     const y = padTop + i * rowH + rowH / 2;
@@ -443,7 +444,7 @@ function spyGexChart(p) {
       svg += `<rect class="gex-put" x="${cx - gutter - putW}" y="${y - rowH * 0.32}" ` +
         `width="${putW}" height="${rowH * 0.64}"/>`;
     svg += `<text class="gex-strike" x="${cx}" y="${y + 3}" text-anchor="middle">${px(c.strike)}</text>`;
-    if (magnetSet.has(Math.round(c.strike / 5) * 5))
+    if (magnetSet.has(Math.round(c.strike / bucket) * bucket))
       svg += `<circle class="gex-magnet" cx="${cx - gutter - putW - 8}" cy="${y}" r="3"/>`;
   });
 
@@ -550,6 +551,102 @@ function renderSpyPositioning(body, p) {
   body.innerHTML = row0 + row1 + row2 + row3 + footer;
 }
 
+// Same layout as renderSpyPositioning but for any user-supplied ticker. The
+// auto-scaled payload has the identical shape; only the symbol label and the
+// single-name footer caveat differ, plus the dynamic chart bucket. SPY's
+// renderer is intentionally left untouched.
+function renderTickerPositioning(body, p) {
+  if (p == null) {
+    body.innerHTML = `<p class="empty-note">Enter a ticker and press ` +
+      `<strong>Go</strong> to fetch its CBOE option chain.</p>`;
+    return;
+  }
+  if (p.not_found) {
+    body.innerHTML = `<p class="empty-note">${esc(p.message ||
+      ("No data found for " + (p.symbol || "ticker")))}</p>`;
+    return;
+  }
+  if (p.spot == null) {
+    body.innerHTML = `<p class="empty-note">Enter a ticker and press ` +
+      `<strong>Go</strong> to fetch its CBOE option chain.</p>`;
+    return;
+  }
+  const sym = esc(p.symbol || "Ticker");
+  const c = p.commentary || { headline: "", warnings: [], sentences: [] };
+  const regimePos = p.regime === "positive";
+
+  // Row 0 — commentary
+  const warnings = (c.warnings || []).map((w) =>
+    `<div class="spy-warn">${esc(w)}</div>`).join("");
+  const sentences = (c.sentences || []).map((s) => esc(s)).join(" ");
+  const row0 =
+    `<div class="spy-row spy-commentary">` +
+    warnings +
+    `<div class="spy-headline">${esc(c.headline)}</div>` +
+    `<p class="spy-prose">${sentences}</p></div>`;
+
+  // Row 1 — regime header (4 cards)
+  const flipSub = p.zero_gamma == null
+    ? "no flip in ±8%"
+    : `Flip at ${px(p.zero_gamma)}`;
+  const cushVal = p.cushion == null ? "—"
+    : `${p.cushion >= 0 ? "+" : ""}$${p.cushion.toFixed(2)} / ${spct(p.cushion_pct)}`;
+  const dexShort = p.dex < 0;
+  const row1 =
+    `<div class="spy-row spy-cards-4">` +
+    spyCard("Regime", regimePos ? "Positive gamma" : "Negative gamma", flipSub,
+      regimePos ? "pos" : "neg") +
+    spyCard("Spot vs Flip", cushVal, `${sym} ${px(p.spot)}`,
+      (p.cushion || 0) >= 0 ? "pos" : "neg") +
+    spyCard("Net GEX", fmtUsd(p.net_gex), "per 1% move",
+      p.net_gex >= 0 ? "pos" : "neg") +
+    spyCard("DEX bias", fmtUsd(p.dex),
+      dexShort ? "dealers net short delta" : "dealers net long delta",
+      dexShort ? "neg" : "pos") +
+    `</div>`;
+
+  // Row 2 — gamma by strike chart (dynamic bucket for this ticker's price)
+  const row2 = `<div class="spy-row spy-chart-row">${spyGexChart(p, p.bucket || 5)}</div>`;
+
+  // Row 3 — three small cards
+  const ladder = [];
+  if (p.call_wall != null) ladder.push(["Call wall", p.call_wall, "lvl-call"]);
+  const nm = p.nearest_magnet;
+  if (nm != null) ladder.push(["OI magnet", nm, "lvl-mag"]);
+  if (p.zero_gamma != null) ladder.push(["Zero gamma", p.zero_gamma, "lvl-zero"]);
+  if (p.put_wall != null) ladder.push(["Put wall", p.put_wall, "lvl-put"]);
+  ladder.push([sym, p.spot, "lvl-spot"]);
+  ladder.sort((a, b) => b[1] - a[1]);
+  const levelsTbl = `<table class="spy-levels">` + ladder.map((r) =>
+    `<tr class="${r[2]}"><td>${esc(r[0])}</td><td>${px(r[1])}</td></tr>`).join("") + `</table>`;
+
+  const vannaSub = Math.abs(p.vanna_pressure) < 1e6 ? "neutral"
+    : (p.vanna_pressure > 0
+      ? "falling IV forces dealer buying (supportive)"
+      : "rising IV forces dealer selling (fragile)");
+  const charmSub = p.charm_drift >= 0
+    ? "drift to buy into the close"
+    : "drift to sell into the close";
+
+  const row3 =
+    `<div class="spy-row spy-cards-3">` +
+    `<div class="spy-card spy-levels-card"><div class="spy-card-label">Key levels</div>${levelsTbl}</div>` +
+    spyCard("Vanna pressure", `${fmtUsd(p.vanna_pressure)} / -1 vol pt`, vannaSub,
+      p.vanna_pressure >= 0 ? "pos" : "neg") +
+    spyCard("Charm drift", `${fmtUsd(p.charm_drift)} / day`,
+      `${charmSub} · OPEX ${esc(p.next_opex || "")}`,
+      p.charm_drift >= 0 ? "pos" : "neg") +
+    `</div>`;
+
+  const footer =
+    `<div class="spy-footer">${sym} · CBOE delayed snapshot ${esc(p.snapshot_ts || "")} · ` +
+    `~15-min delayed · expirations ≤ ${p.expiry_window_days || 90}d · ` +
+    `${p.n_contracts || 0} contracts · assumes dealers long calls / short puts ` +
+    `(a rougher proxy for a single name than for SPY).</div>`;
+
+  body.innerHTML = row0 + row1 + row2 + row3 + footer;
+}
+
 // --------------------------------------------------------------------------
 // Refresh wiring
 // --------------------------------------------------------------------------
@@ -600,6 +697,35 @@ async function init() {
     runRefresh("/api/refresh/analysis", e.currentTarget, "Updating analysis"));
   $("#btn-spy").addEventListener("click", (e) =>
     runRefresh("/api/refresh/spy_positioning", e.currentTarget, "Refreshing SPY positioning"));
+
+  // Ticker positioning has its own Go box (posts a symbol), so it uses a
+  // dedicated handler instead of the body-less shared runRefresh.
+  function runTickerPositioning() {
+    const sym = ($("#ticker-input").value || "").trim().toUpperCase();
+    if (!sym) { setStatus("Enter a ticker first."); return; }
+    const btn = $("#btn-ticker");
+    const buttons = document.querySelectorAll(".btn");
+    buttons.forEach((b) => (b.disabled = true));
+    btn.setAttribute("aria-busy", "true");
+    setStatus(`Fetching ${sym} positioning…`);
+    fetch(`/api/refresh/ticker_positioning?symbol=${encodeURIComponent(sym)}`,
+          { method: "POST" })
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then((updated) => {
+        Object.entries(updated).forEach(([k, rec]) => renderPanel(k, rec));
+        const rec = updated.ticker_positioning;
+        const nf = rec && rec.payload && rec.payload.not_found;
+        setStatus(nf ? `No data found for ${sym}.` : `${sym} positioning loaded.`);
+      })
+      .catch((e) => setStatus(`Ticker fetch failed: ${e.message}.`))
+      .finally(() => {
+        btn.removeAttribute("aria-busy");
+        buttons.forEach((b) => (b.disabled = false));
+      });
+  }
+  $("#btn-ticker").addEventListener("click", runTickerPositioning);
+  $("#ticker-input").addEventListener("keydown",
+    (e) => { if (e.key === "Enter") runTickerPositioning(); });
 
   // Keep relative timestamps fresh without re-fetching.
   setInterval(() => {

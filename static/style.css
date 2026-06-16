@@ -340,6 +340,27 @@ ol.salient a:hover { color: var(--accent); text-decoration: underline; }
 /* ---- SPY positioning panel ---- */
 .panel-spy { grid-column: span 12; }
 
+/* Ticker positioning Go box (in the panel head); matches the .btn terminal theme */
+.ticker-controls { display: flex; align-items: center; gap: 8px; }
+.ticker-input {
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--fg);
+  background: #1d1609;
+  border: 1px solid var(--border-lt);
+  border-radius: 4px;
+  padding: 7px 9px;
+  width: 7ch;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: border-color .12s;
+}
+.ticker-input::placeholder { color: var(--fg-dim); text-transform: none; letter-spacing: 0; }
+.ticker-input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+}
+
 .spy-row { margin-bottom: 14px; }
 .spy-row:last-child { margin-bottom: 0; }
 

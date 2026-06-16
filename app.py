@@ -9,6 +9,7 @@ auto-refreshes; updates are triggered by the three buttons in the UI.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import uvicorn
@@ -21,7 +22,7 @@ import earnings
 import news
 import screeners
 import store
-from panels import spy_positioning
+from panels import spy_positioning, ticker_positioning
 
 BASE = Path(__file__).parent
 STATIC = BASE / "static"
@@ -176,6 +177,40 @@ def api_refresh_spy_positioning() -> JSONResponse:
     except Exception as exc:
         store.update_status("spy_positioning", "error", str(exc))
         out["spy_positioning"] = store.get_panel("spy_positioning")
+    return JSONResponse(out)
+
+
+@app.post("/api/refresh/ticker_positioning")
+def api_refresh_ticker_positioning(symbol: str) -> JSONResponse:
+    """Fetch any optionable ticker's CBOE chain and compute its positioning.
+
+    Modelled on the SPY route but takes a ``symbol`` query param. A clean
+    "not found" (bad shape or no usable options data) is persisted as a normal
+    ``status="ok"`` message state so the panel shows a tidy note rather than an
+    error badge; only genuine fetch/compute failures keep the cached snapshot
+    behind an error badge. One store key -> the panel reloads the last queried
+    ticker on startup.
+    """
+    out = {}
+    sym = (symbol or "").strip().upper()
+    if not re.fullmatch(r"[A-Z.]{1,6}", sym):
+        payload = {"symbol": sym, "not_found": True,
+                   "message": f"'{symbol}' is not a valid ticker."}
+        out["ticker_positioning"] = store.save_panel(
+            "ticker_positioning", payload, status="ok")
+        return JSONResponse(out)
+    try:
+        payload = ticker_positioning.refresh(sym)
+        out["ticker_positioning"] = store.save_panel(
+            "ticker_positioning", payload, status="ok")
+    except ticker_positioning.NotFound:
+        payload = {"symbol": sym, "not_found": True,
+                   "message": f"No optionable data found for {sym}."}
+        out["ticker_positioning"] = store.save_panel(
+            "ticker_positioning", payload, status="ok")
+    except Exception as exc:
+        store.update_status("ticker_positioning", "error", str(exc))
+        out["ticker_positioning"] = store.get_panel("ticker_positioning")
     return JSONResponse(out)
 
 
