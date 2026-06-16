@@ -1,5 +1,7 @@
 # Market Almanack
 
+![Market Almanack dashboard](docs/screenshot.png)
+
 A **local, offline market dashboard** that runs in your browser at
 `http://localhost:8000`. It combines a SPY dealer-positioning panel, two
 Finviz screeners, an upcoming-earnings calendar, five RSS news feeds, and two
