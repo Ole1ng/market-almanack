@@ -48,6 +48,25 @@
       <div class="panel-body" data-body aria-live="polite"></div>
     </section>
 
+    <!-- Ticker dealer positioning (user-supplied symbol) -->
+    <section class="panel panel-spy" id="panel-ticker_positioning"
+             aria-labelledby="h-ticker_positioning">
+      <div class="panel-head">
+        <h2 id="h-ticker_positioning">Ticker Positioning</h2>
+        <div class="ticker-controls">
+          <input id="ticker-input" class="ticker-input" type="text"
+                 inputmode="latin" maxlength="6" autocomplete="off"
+                 placeholder="e.g. AAPL" aria-label="Ticker symbol" />
+          <button id="btn-ticker" type="button" class="btn">
+            <span class="btn-label">Go</span>
+          </button>
+          <span class="badge" data-badge></span>
+          <span class="updated" data-updated>—</span>
+        </div>
+      </div>
+      <div class="panel-body" data-body aria-live="polite"></div>
+    </section>
+
     <!-- Screeners -->
     <section class="panel panel-wide" id="panel-screener_day" aria-labelledby="h-screener_day">
       <div class="panel-head">
