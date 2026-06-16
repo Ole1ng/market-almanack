@@ -14,6 +14,7 @@ const RENDERERS = {
   analysis_commodity: renderCommodity,
   spy_positioning: renderSpyPositioning,
   ticker_positioning: renderTickerPositioning,
+  cftc_positioning: renderCftcPositioning,
 };
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -648,6 +649,109 @@ function renderTickerPositioning(body, p) {
 }
 
 // --------------------------------------------------------------------------
+// CFTC trader positioning renderer (per-contract gauge + verdict + spark)
+// --------------------------------------------------------------------------
+
+// A 0-100 horizontal gauge: state colours the fill, the number is the 3-yr
+// percentile. `secondary` renders the thinner Asset-Managers variant.
+function cftcGauge(label, block, secondary) {
+  if (!block) return "";
+  const pctl = block.pctl == null ? 0 : block.pctl;
+  const w = Math.max(0, Math.min(100, pctl));
+  const state = block.state || "neutral";
+  const cls = secondary ? "cftc-gauge secondary" : "cftc-gauge";
+  const aria = `${label}: ${pctl.toFixed(0)}th percentile over 3 years, ` +
+    `net ${fmtNum(block.net)} contracts`;
+  return `<div class="cftc-gauge-row">` +
+    `<div class="cftc-gauge-label">${esc(label)}</div>` +
+    `<div class="${cls}" role="img" aria-label="${esc(aria)}">` +
+      `<div class="cftc-gauge-fill s-${esc(state)}" style="width:${w}%"></div>` +
+    `</div>` +
+    `<div class="cftc-gauge-num">${pctl.toFixed(0)}</div></div>`;
+}
+
+// Compact net-position-vs-price sparkline (dual independent scales) so a
+// price/positioning divergence is visible at a glance. Pure SVG, theme colours.
+function cftcSpark(series) {
+  const pts = (series || []).filter((d) => d.lev_net != null);
+  if (pts.length < 2) return "";
+  const W = 1000, H = 90, padL = 4, padR = 4, padT = 8, padB = 8;
+  const n = pts.length;
+  const xs = (i) => padL + (i / (n - 1)) * (W - padL - padR);
+
+  const nets = pts.map((p) => p.lev_net);
+  const nmin = Math.min(...nets, 0), nmax = Math.max(...nets, 0);
+  const nrange = (nmax - nmin) || 1;
+  const yNet = (v) => padT + (1 - (v - nmin) / nrange) * (H - padT - padB);
+
+  const prices = pts.map((p) => p.price).filter((v) => v != null);
+  let pricePath = "";
+  if (prices.length >= 2) {
+    const pmin = Math.min(...prices), pmax = Math.max(...prices);
+    const pr = (pmax - pmin) || 1;
+    const yP = (v) => padT + (1 - (v - pmin) / pr) * (H - padT - padB);
+    pricePath = pts.map((p, i) =>
+      p.price == null ? null
+        : `${i === 0 ? "M" : "L"}${xs(i).toFixed(1)},${yP(p.price).toFixed(1)}`
+    ).filter(Boolean).join(" ");
+  }
+  const netPath = pts.map((p, i) =>
+    `${i === 0 ? "M" : "L"}${xs(i).toFixed(1)},${yNet(p.lev_net).toFixed(1)}`
+  ).join(" ");
+  const yZero = yNet(0).toFixed(1);
+
+  let svg = `<svg class="cftc-spark" viewBox="0 0 ${W} ${H}" ` +
+    `preserveAspectRatio="none" role="img" ` +
+    `aria-label="Leveraged Funds net position versus price over the lookback window">`;
+  svg += `<line class="cftc-spark-zero" x1="0" y1="${yZero}" x2="${W}" y2="${yZero}"/>`;
+  if (pricePath) svg += `<path class="cftc-spark-price" d="${pricePath}"/>`;
+  svg += `<path class="cftc-spark-net" d="${netPath}"/></svg>`;
+  return svg +
+    `<div class="cftc-spark-legend"><span class="net">— LF net</span> · ` +
+    `<span class="price">— price</span></div>`;
+}
+
+function renderCftcPositioning(body, p) {
+  if (!p || !p.contracts || !p.contracts.length) {
+    body.innerHTML = `<p class="empty-note">No data yet — click ` +
+      `<strong>Refresh CFTC Positioning</strong> to fetch the latest ` +
+      `Commitments of Traders report.</p>`;
+    return;
+  }
+  const cards = p.contracts.map((ct) => {
+    const lev = ct.lev || {}, am = ct.am;
+    const state = lev.state || "neutral";
+    const flags = [];
+    if (ct.flags) {
+      if (ct.flags.stale) flags.push(`<span class="cftc-flag stale">stale</span>`);
+      if (ct.flags.price_missing) flags.push(`<span class="cftc-flag">no price</span>`);
+      if (ct.flags.short_history) flags.push(`<span class="cftc-flag">short history</span>`);
+    }
+    const wowSign = lev.wow > 0 ? "+" : "";
+    const netLine = `${lev.net >= 0 ? "net-long" : "net-short"} ` +
+      `${fmtNum(Math.abs(lev.net))} · WoW ${wowSign}${fmtNum(lev.wow)}`;
+    const amLine = am
+      ? `<div class="cftc-meta sub">Asset Managers (real money): net ` +
+        `${am.net >= 0 ? "+" : ""}${fmtNum(am.net)} · secondary read</div>`
+      : "";
+    return `<div class="cftc-contract">` +
+      `<div class="cftc-contract-head">` +
+        `<span class="cftc-contract-label">${esc(ct.label)}</span>${flags.join("")}</div>` +
+      `<div class="cftc-verdict s-${esc(state)}">${esc(lev.verdict || "")}</div>` +
+      cftcGauge("Leveraged Funds", lev, false) +
+      `<div class="cftc-meta">${esc(netLine)}</div>` +
+      `<p class="cftc-sentence">${esc(lev.sentence || "")}</p>` +
+      (am ? cftcGauge("Asset Managers", am, true) : "") +
+      amLine +
+      cftcSpark(ct.series) +
+    `</div>`;
+  }).join("");
+
+  body.innerHTML = `<div class="cftc-grid">${cards}</div>` +
+    `<div class="spy-footer">As of ${esc(p.as_of || "")} · ${esc(p.caveat || "")}</div>`;
+}
+
+// --------------------------------------------------------------------------
 // Refresh wiring
 // --------------------------------------------------------------------------
 
@@ -697,6 +801,8 @@ async function init() {
     runRefresh("/api/refresh/analysis", e.currentTarget, "Updating analysis"));
   $("#btn-spy").addEventListener("click", (e) =>
     runRefresh("/api/refresh/spy_positioning", e.currentTarget, "Refreshing SPY positioning"));
+  $("#btn-cftc").addEventListener("click", (e) =>
+    runRefresh("/api/refresh/cftc_positioning", e.currentTarget, "Refreshing CFTC positioning"));
 
   // Ticker positioning has its own Go box (posts a symbol), so it uses a
   // dedicated handler instead of the body-less shared runRefresh.

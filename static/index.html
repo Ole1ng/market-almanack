@@ -18,6 +18,9 @@
       <button id="btn-spy" type="button" class="btn">
         <span class="btn-label">Refresh SPY Positioning</span>
       </button>
+      <button id="btn-cftc" type="button" class="btn">
+        <span class="btn-label">Refresh CFTC Positioning</span>
+      </button>
       <button id="btn-screeners" type="button" class="btn">
         <span class="btn-label">Refresh Screeners</span>
       </button>
@@ -60,6 +63,19 @@
           <button id="btn-ticker" type="button" class="btn">
             <span class="btn-label">Go</span>
           </button>
+          <span class="badge" data-badge></span>
+          <span class="updated" data-updated>—</span>
+        </div>
+      </div>
+      <div class="panel-body" data-body aria-live="polite"></div>
+    </section>
+
+    <!-- CFTC trader positioning (Commitments of Traders) -->
+    <section class="panel panel-spy" id="panel-cftc_positioning"
+             aria-labelledby="h-cftc_positioning">
+      <div class="panel-head">
+        <h2 id="h-cftc_positioning">CFTC Trader Positioning</h2>
+        <div class="panel-meta">
           <span class="badge" data-badge></span>
           <span class="updated" data-updated>—</span>
         </div>
