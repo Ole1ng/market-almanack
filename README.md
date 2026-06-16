@@ -29,6 +29,7 @@ NLTK stopword list; no manual setup needed.
 | Button | What it does | Panels |
 |--------|--------------|--------|
 | **Refresh SPY Positioning** | Pulls the delayed CBOE SPY option chain and recomputes the dealer-positioning snapshot | 1 |
+| **Refresh CFTC Positioning** | Pulls the weekly CFTC TFF report (+ yfinance prices) for E-mini S&P 500, VIX, and E-mini Nasdaq-100 and recomputes the normalised positioning | CFTC |
 | **Refresh Screeners** | Re-runs both Finviz screeners (and upcoming earnings, since its watchlist is partly derived from the screeners) | 2–3, 4 |
 | **Refresh Earnings** | Re-fetches upcoming earnings for the watchlist only | 4 |
 | **Refresh News** | Re-fetches all RSS feeds | 5–9 |
@@ -51,6 +52,27 @@ if you want the analysis to reflect the latest headlines.
    > Note: this is a *delayed* snapshot (CBOE end-of-15-min data). A stale-,
    > fallback-spot-, or thin-chain badge is shown in-panel when data quality is
    > degraded, and the read is descriptive of positioning, not trade advice.
+
+   The dashboard also carries a **Ticker Positioning** panel (the same dealer
+   engine for any user-supplied optionable symbol) and, directly below it, a
+   **CFTC Trader Positioning** panel:
+
+   **CFTC Trader Positioning** — weekly Commitments of Traders (CFTC *Traders in
+   Financial Futures*, futures-only) for **E-mini S&P 500, VIX, and E-mini
+   Nasdaq-100**. For each contract it shows **Leveraged Funds** (speculative) net
+   positioning normalised to a 0–100 **percentile + z-score over a rolling
+   3-year (156-week) window**, a colour-coded verdict (crowded / squeeze /
+   neutral), a secondary **Asset Managers** (real-money) gauge for contrast, and
+   a net-position-vs-price **sparkline** so price/positioning divergences are
+   visible. The **VIX read is inverted**: a heavily net-short Leveraged Funds
+   book = short-vol carry crowding = *fragile* to a vol spike. Keyless CFTC
+   Socrata fetch + `yfinance` weekly prices; deterministic rule-based commentary,
+   **no LLM**. COT is Tuesday positions released the following Friday (~3-day
+   lag), so a `stale` badge shows if the latest report is old. Tunable constants
+   (contract codes, thresholds, lookback) live at the top of
+   `panels/cftc_positioning.py`; run its tests with
+   `python -m pytest panels/test_cftc_positioning.py`.
+
 2. **Daytrading Screener** — Finviz: price > $5, avg vol > 500K, rel vol > 2,
    change up, gap up, price above SMA20 & SMA50, float < 50M, beta > 1.5.
 3. **Swing Screener** — price > $10, avg vol > 500K, rel vol > 1.5, above
@@ -115,8 +137,11 @@ market_almanack/
 ├── analysis.py       VADER + CountVectorizer + entity-spotting pipeline
 ├── panels/
 │   ├── spy_positioning.py   CBOE chain -> GEX/DEX/vanna/charm + rule-based commentary
+│   ├── ticker_positioning.py   same engine for any user-supplied optionable symbol
+│   ├── cftc_positioning.py  CFTC TFF COT -> normalised Lev-Fund/Asset-Mgr positioning + commentary
 │   ├── _bs.py               Black-Scholes Greeks (vanna, charm, ladder gamma)
-│   └── test_spy_positioning.py   unit tests for the positioning math/engine
+│   ├── test_spy_positioning.py   unit tests for the positioning math/engine
+│   └── test_cftc_positioning.py  unit tests for the COT normalisation + VIX inversion
 ├── static/           index.html, style.css, app.js (the dashboard UI)
 ├── requirements.txt
 └── almanack.db       created on first run (gitignored)

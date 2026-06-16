@@ -30,6 +30,7 @@ PANEL_KEYS = [
     "earnings",
     "spy_positioning",
     "ticker_positioning",
+    "cftc_positioning",
 ]
 
 _lock = threading.Lock()

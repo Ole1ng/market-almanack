@@ -22,7 +22,7 @@ import earnings
 import news
 import screeners
 import store
-from panels import spy_positioning, ticker_positioning
+from panels import cftc_positioning, spy_positioning, ticker_positioning
 
 BASE = Path(__file__).parent
 STATIC = BASE / "static"
@@ -177,6 +177,25 @@ def api_refresh_spy_positioning() -> JSONResponse:
     except Exception as exc:
         store.update_status("spy_positioning", "error", str(exc))
         out["spy_positioning"] = store.get_panel("spy_positioning")
+    return JSONResponse(out)
+
+
+@app.post("/api/refresh/cftc_positioning")
+def api_refresh_cftc_positioning() -> JSONResponse:
+    """Fetch CFTC TFF positioning for the tracked contracts and persist it.
+
+    A multi-contract Socrata + yfinance fetch, so it gets its own button,
+    uncoupled from the SPY/ticker option-chain panels. On failure the cached
+    snapshot is kept behind an error/stale badge, exactly like the others.
+    """
+    out = {}
+    try:
+        payload = cftc_positioning.refresh()
+        out["cftc_positioning"] = store.save_panel(
+            "cftc_positioning", payload, status="ok")
+    except Exception as exc:
+        store.update_status("cftc_positioning", "error", str(exc))
+        out["cftc_positioning"] = store.get_panel("cftc_positioning")
     return JSONResponse(out)
 
 
