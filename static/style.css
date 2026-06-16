@@ -340,6 +340,13 @@ ol.salient a:hover { color: var(--accent); text-decoration: underline; }
 /* ---- SPY positioning panel ---- */
 .panel-spy { grid-column: span 12; }
 
+/* SPY + Ticker positioning sit side by side (half width each) on wide screens;
+   they stack below 1200px where the 12-col grid collapses other wide panels. */
+.panel-half { grid-column: span 6; }
+@media (max-width: 1200px) {
+  .panel-half { grid-column: span 12; }
+}
+
 /* Ticker positioning Go box (in the panel head); matches the .btn terminal theme */
 .ticker-controls { display: flex; align-items: center; gap: 8px; }
 .ticker-input {
